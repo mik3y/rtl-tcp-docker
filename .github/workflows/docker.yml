@@ -32,15 +32,10 @@ jobs:
             echo ::set-output name=version::git-${GITHUB_SHA::8}
           fi
           echo ::set-output name=build_date::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
-      -
-        name: Set up Docker Buildx
-        id: buildx
-        uses: crazy-max/ghaction-docker-buildx@v1
-        with:
-          version: latest
-      -
-        name: Available platforms
-        run: echo ${{ steps.build.outputs.platforms }}
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
       -
         name: Log in to the Container registry
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
@@ -55,13 +50,13 @@ jobs:
           docker buildx build \
             --output "type=image,push=false" \
             --platform linux/amd64,linux/arm/v7,linux/arm64/v8 \
-            --cache-from=type=registry,ref=mik3y/rtl-tcp-docker \
-            --cache-to=type=registry,ref=mik3y/rtl-tcp-docker \
+            --cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
+            --cache-to=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
             --build-arg "BUILD_DATE=${{ steps.prepare.outputs.build_date }}" \
             --build-arg "GIT_SHORT_SHA=${GITHUB_SHA::8}" \
             --build-arg "VERSION=${{ steps.prepare.outputs.version }}" \
-            --tag "${{ env.REGISTRY }}/mik3y/rtl-tcp-docker:${{ steps.prepare.outputs.tag_name }}" \
-            --tag "${{ env.REGISTRY }}/mik3y/rtl-tcp-docker:latest" \
+            --tag "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.prepare.outputs.tag_name }}" \
+            --tag "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" \
             .
       -
         name: Build (no cache)
@@ -81,10 +76,10 @@ jobs:
           docker buildx build \
             --output "type=image,push=true" \
             --platform linux/amd64,linux/arm/v7,linux/arm64/v8 \
-            --cache-from=type=registry,ref=mik3y/rtl-tcp-docker \
+            --cache-from=type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }} \
             --build-arg "BUILD_DATE=${{ steps.prepare.outputs.build_date }}" \
             --build-arg "GIT_SHORT_SHA=${GITHUB_SHA::8}" \
             --build-arg "VERSION=${{ steps.prepare.outputs.version }}" \
-            --tag "${{ env.REGISTRY }}/mik3y/rtl-tcp-docker:${{ steps.prepare.outputs.tag_name }}" \
-            --tag "${{ env.REGISTRY }}/mik3y/rtl-tcp-docker:latest" \
+            --tag "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.prepare.outputs.tag_name }}" \
+            --tag "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest" \
             .
