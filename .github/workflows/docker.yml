@@ -1,0 +1,90 @@
+name: Docker Build
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+      -
+        name: Prepare
+        id: prepare
+        run: |
+          if [[ $GITHUB_REF == refs/tags/* ]]; then
+            TAG=${GITHUB_REF#refs/tags/}
+            echo ::set-output name=tag_name::${TAG}
+            echo ::set-output name=version::${TAG%-*}
+          else
+            echo ::set-output name=tag_name::snapshot
+            echo ::set-output name=version::git-${GITHUB_SHA::8}
+          fi
+          echo ::set-output name=build_date::$(date -u +'%Y-%m-%dT%H:%M:%SZ')
+      -
+        name: Set up Docker Buildx
+        id: buildx
+        uses: crazy-max/ghaction-docker-buildx@v1
+        with:
+          version: latest
+      -
+        name: Available platforms
+        run: echo ${{ steps.build.outputs.platforms }}
+      -
+        name: Log in to the Container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      -
+        name: Build
+        if: ${{ '${{ secrets.GITHUB_TOKEN }}' != '' }}
+        run: |
+          docker buildx build \
+            --output "type=image,push=false" \
+            --platform linux/amd64,linux/arm/v7,linux/arm64/v8 \
+            --cache-from=type=registry,ref=mik3y/rtl-tcp-docker \
+            --cache-to=type=registry,ref=mik3y/rtl-tcp-docker \
+            --build-arg "BUILD_DATE=${{ steps.prepare.outputs.build_date }}" \
+            --build-arg "GIT_SHORT_SHA=${GITHUB_SHA::8}" \
+            --build-arg "VERSION=${{ steps.prepare.outputs.version }}" \
+            --tag "${{ env.REGISTRY }}/mik3y/rtl-tcp-docker:${{ steps.prepare.outputs.tag_name }}" \
+            --tag "${{ env.REGISTRY }}/mik3y/rtl-tcp-docker:latest" \
+            .
+      -
+        name: Build (no cache)
+        if: ${{ '${{ secrets.GITHUB_TOKEN }}' == '' }}
+        run: |
+          docker buildx build \
+            --output "type=image,push=false" \
+            --platform linux/amd64,linux/arm/v7,linux/arm64/v8 \
+            --build-arg "BUILD_DATE=${{ steps.prepare.outputs.build_date }}" \
+            --build-arg "GIT_SHORT_SHA=${GITHUB_SHA::8}" \
+            --build-arg "VERSION=${{ steps.prepare.outputs.version }}" \
+            .
+      -
+        name: Publish
+        if: ${{ '${{ secrets.GITHUB_TOKEN }}' != '' }}
+        run: |
+          docker buildx build \
+            --output "type=image,push=true" \
+            --platform linux/amd64,linux/arm/v7,linux/arm64/v8 \
+            --cache-from=type=registry,ref=mik3y/rtl-tcp-docker \
+            --build-arg "BUILD_DATE=${{ steps.prepare.outputs.build_date }}" \
+            --build-arg "GIT_SHORT_SHA=${GITHUB_SHA::8}" \
+            --build-arg "VERSION=${{ steps.prepare.outputs.version }}" \
+            --tag "${{ env.REGISTRY }}/mik3y/rtl-tcp-docker:${{ steps.prepare.outputs.tag_name }}" \
+            --tag "${{ env.REGISTRY }}/mik3y/rtl-tcp-docker:latest" \
+            .
