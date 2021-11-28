@@ -16,7 +16,7 @@ apt-get install -y --no-install-recommends \
     libusb-1.0-0 \
     libusb-1.0-0-dev
 
-git clone https://github.com/steve-m/librtlsdr
+git clone https://github.com/mik3y/librtlsdr
 cd librtlsdr && \
   autoreconf -i && \
   ./configure --prefix=/usr && \
