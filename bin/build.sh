@@ -2,6 +2,20 @@
 
 set -ex
 
+apt-get update
+
+apt-get install -y --no-install-recommends \
+    build-essential \
+    ca-certificates \
+    pkg-config \
+    automake \
+    autotools-dev \
+    autoconf \
+    libtool \
+    git \
+    libusb-1.0-0 \
+    libusb-1.0-0-dev
+
 git clone https://github.com/steve-m/librtlsdr
 cd librtlsdr && \
   autoreconf -i && \
